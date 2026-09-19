@@ -1,0 +1,42 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: beagclave-system
+  labels:
+    purpose: agent-runtime
+    data-tier: internal
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: beagclave-cui-data
+  labels:
+    purpose: cui-workspace
+    data-tier: restricted
+    export-control: cui
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: beagclave-itar-data
+  labels:
+    purpose: itar-workspace
+    data-tier: restricted
+    export-control: itar
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: beagclave-ear-data
+  labels:
+    purpose: ear-workspace
+    data-tier: restricted
+    export-control: ear
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: beagclave-agents
+  labels:
+    purpose: agent-workloads
+    data-tier: internal

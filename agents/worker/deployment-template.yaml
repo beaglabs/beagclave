@@ -1,0 +1,33 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: beagclave-worker-template
+  namespace: beagclave-agents
+  annotations:
+    beagclave.dev/template: "true"
+    beagclave.dev/agent-type: "worker"
+    beagclave.dev/required-tools: "file-reader,data-processor,api-client,image-analyzer"
+spec:
+  replicas: 0
+  selector:
+    matchLabels:
+      app: worker-ephemeral
+  template:
+    metadata:
+      labels:
+        app: worker-ephemeral
+        agent-type: worker
+        data-tier: internal
+    spec:
+      serviceAccountName: beagclave-agent
+      containers:
+      - name: worker
+        image: ghcr.io/beagclave/worker:{{IMAGE_TAG}}
+        command: ["worker", "--ephemeral", "--session={{SESSION_ID}}"]
+        envFrom:
+        - secretRef:
+            name: agent-secrets
+        - configMapRef:
+            name: agent-runtime-config
+      volumes: []

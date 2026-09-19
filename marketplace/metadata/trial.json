@@ -1,0 +1,35 @@
+{
+  "name": "Beagclave Free Trial",
+  "version": "1.0.0",
+  "description": "14-day free trial of the Beagclave secure agentic enclave",
+  "trialPeriodDays": 14,
+  "trialUserLimit": 5,
+  "trialResourceLimits": {
+    "maxAVDHosts": 2,
+    "maxAKSSessions": 2,
+    "maxStorageGB": 100,
+    "maxDataTransferGB": 50
+  },
+  "trialFeatures": {
+    "identity": true,
+    "avd": true,
+    "aks": true,
+    "purview": true,
+    "sovereignty": true,
+    "logging": true,
+    "agentRuntime": true,
+    "complianceReporting": true
+  },
+  "postTrialPlan": "core-enclave",
+  "autoCleanup": {
+    "enabled": true,
+    "when": "trial_end",
+    "destroyAllResources": true,
+    "preserveData": false
+  },
+  "upgradePath": {
+    "fromTrialTo": ["core-enclave", "full-compliance-suite"],
+    "retentionPeriodDays": 7,
+    "migrationScript": "scripts/migrate-trial-to-paid.sh"
+  }
+}

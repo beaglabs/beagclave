@@ -1,0 +1,131 @@
+version: "3.0"
+info:
+  title: "Beagclave Export Control Policies"
+  description: "ITAR/EAR export control enforcement policies"
+  version: "1.0.0"
+  publisher: "Beag Labs"
+
+sovereigntyRules:
+  - id: "itar-deny-non-us-person"
+    name: "ITAR - Deny Non-US Person Access"
+    description: "Denies access to ITAR-labeled data and namespaces for non-US persons"
+    control: "ITAR §125.4(b)"
+    severity: "critical"
+    conditions:
+      userAttribute:
+        name: "exportControlStatus"
+        operator: "notEquals"
+        value: "us-person"
+      dataLabel:
+        - "ITAR"
+        - "CUI//ITAR"
+      resources:
+        - storageAccount: "*"
+        - kubernetesNamespace: "beagclave-itar-data"
+    actions:
+      - deny:
+          at: "identity"
+      - block:
+          at: "storage"
+      - deny:
+          at: "kubernetes-admission"
+
+  - id: "ear-deny-non-us-person"
+    name: "EAR - Deny Non-US Person Access"
+    description: "Denies access to EAR-labeled data and namespaces for non-US persons"
+    control: "EAR 734.3(b)"
+    severity: "critical"
+    conditions:
+      userAttribute:
+        name: "exportControlStatus"
+        operator: "notEquals"
+        value: "us-person"
+      dataLabel:
+        - "EAR"
+        - "CUI//EAR"
+      resources:
+        - storageAccount: "*"
+        - kubernetesNamespace: "beagclave-ear-data"
+    actions:
+      - deny:
+          at: "identity"
+      - block:
+          at: "storage"
+      - deny:
+          at: "kubernetes-admission"
+
+  - id: "itar-logging"
+    name: "ITAR - Log All Access Attempts"
+    description: "Logs all access attempts to ITAR data, including denied attempts"
+    control: "ITAR §125.4(d)"
+    severity: "high"
+    conditions:
+      dataLabel:
+        - "ITAR"
+        - "CUI//ITAR"
+      resources:
+        - storageAccount: "*"
+        - kubernetesNamespace: "beagclave-itar-data"
+    actions:
+      - log:
+          at: "all"
+          level: "audit"
+          destination: "sentinel"
+
+  - id: "ear-logging"
+    name: "EAR - Log All Access Attempts"
+    description: "Logs all access attempts to EAR data, including denied attempts"
+    control: "EAR 734.3(b)"
+    severity: "high"
+    conditions:
+      dataLabel:
+        - "EAR"
+        - "CUI//EAR"
+      resources:
+        - storageAccount: "*"
+        - kubernetesNamespace: "beagclave-ear-data"
+    actions:
+      - log:
+          at: "all"
+          level: "audit"
+          destination: "sentinel"
+
+  - id: "dual-use-detection"
+    name: "Dual-Use Detection"
+    description: "Detects potential dual-use technology exports"
+    control: "EAR 734.3"
+    severity: "medium"
+    conditions:
+      contentContains:
+        - keyword: "dual-use"
+        - keyword: "technology transfer"
+        - keyword: "export control"
+      dataLabel:
+        - "EAR"
+        - "CUI//EAR"
+    actions:
+      - alert:
+          at: "purview"
+          level: "warning"
+          destination: "security-team"
+
+  - id: "non-us-person-access-attempt"
+    name: "Non-US Person ITAR/EAR Access Attempt"
+    description: "Alerts when a non-US person attempts to access ITAR/EAR data"
+    control: "ITAR §125.4, EAR 734.3"
+    severity: "critical"
+    conditions:
+      userAttribute:
+        name: "exportControlStatus"
+        operator: "notEquals"
+        value: "us-person"
+      accessAttempt:
+        resource:
+          - "beagclave-itar-data"
+          - "beagclave-ear-data"
+    actions:
+      - alert:
+          at: "identity"
+          level: "critical"
+          destination: "security-team"
+          description: "Non-US person attempted to access export-controlled data"

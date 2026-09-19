@@ -1,0 +1,10 @@
+pytest>=7.0.0
+azure-identity>=1.15.0
+azure-mgmt-resource>=23.0.0
+azure-mgmt-desktopvirtualization>=3.0.0
+azure-mgmt-containerservice>=23.0.0
+azure-mgmt-purview>=1.0.0
+azure-mgmt-operationalinsights>=9.0.0
+msrestazure>=0.6.0
+pyyaml>=6.0
+requests>=2.31.0

@@ -1,0 +1,129 @@
+version: "3.0"
+info:
+  title: "Beagclave Conditional Access Policies"
+  description: "Conditional Access and authentication policies for the Beagclave enclave"
+  version: "1.0.0"
+  publisher: "Beag Labs"
+
+policies:
+  - id: require-phishing-resistant-mfa
+    name: "Require phishing-resistant MFA"
+    description: "All users must use FIDO2 passkey, PIV/CAC, or phishing-resistant MFA"
+    conditions:
+      users:
+        include:
+          groups: ["Beagclave-All-Users"]
+      applications:
+        include:
+          - "All"
+      locations:
+        include:
+          - "All"
+        exclude:
+          - "TrustedNetworks"
+      clientAppTypes:
+        - "all"
+    grant:
+      controls:
+        - "mfa"
+      authenticationStrength:
+        id: "fido2-piv-phishing-resistant"
+      operator: "OR"
+    session:
+      signInFrequencyValue: 1
+      signInFrequencyType: "hours"
+      persistentBrowser: "never"
+
+  - id: block-non-us-person-itar
+    name: "Block non-US persons from ITAR data"
+    description: "Deny access to ITAR-labeled data for non-US persons"
+    conditions:
+      users:
+        include:
+          groups: ["Beagclave-NonUSPersons"]
+      applications:
+        include:
+          - "Microsoft.Storage"
+      contexts:
+        include:
+          - "urn:endpoint:itar-data"
+    grant:
+      controls:
+        - "block"
+
+  - id: block-non-us-person-ear
+    name: "Block non-US persons from EAR data"
+    description: "Deny access to EAR-labeled data for non-US persons"
+    conditions:
+      users:
+        include:
+          groups: ["Beagclave-NonUSPersons"]
+      applications:
+        include:
+          - "Microsoft.Storage"
+      contexts:
+        include:
+          - "urn:endpoint:ear-data"
+    grant:
+      controls:
+        - "block"
+
+  - id: require-device-compliance
+    name: "Require compliant device for access"
+    description: "Only Intune-compliant devices can access the enclave"
+    conditions:
+      users:
+        include:
+          groups: ["Beagclave-All-Users"]
+      applications:
+        include:
+          - "All"
+      devices:
+        include:
+          - "Compliant"
+      clientAppTypes:
+        - "browser"
+        - "mobile"
+        - "desktop"
+    grant:
+      controls:
+        - "compliantDevice"
+      operator: "OR"
+    session:
+      applicationEnforcedRestrictions: "enabled"
+
+  - id: restrict-access-by-time
+    name: "Time-based access restriction"
+    description: "Restrict access to business hours only"
+    conditions:
+      users:
+        include:
+          groups: ["Beagclave-Engineers"]
+      applications:
+        include:
+          - "All"
+      times:
+        include:
+          - "08:00-18:00"
+    grant:
+      controls:
+        - "compliantDevice"
+      operator: "OR"
+
+  - id: require-approved-client-app
+    name: "Require approved client app or app compliance"
+    description: "Only approved client apps can access enclave resources"
+    conditions:
+      users:
+        include:
+          groups: ["Beagclave-All-Users"]
+      applications:
+        include:
+          - "All"
+      clientAppTypes:
+        - "all"
+    grant:
+      controls:
+        - "approvedClientApp"
+        - "appCompliant"
+      operator: "OR"

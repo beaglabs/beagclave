@@ -1,0 +1,177 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "location": {
+      "type": "string",
+      "defaultValue": "[resourceGroup().location]",
+      "metadata": {
+        "description": "Azure region where resources will be deployed"
+      }
+    },
+    "enclaveName": {
+      "type": "string",
+      "metadata": {
+        "description": "Name of the Beagclave enclave"
+      }
+    },
+    "environment": {
+      "type": "string",
+      "allowedValues": ["dev", "prod"],
+      "defaultValue": "prod",
+      "metadata": {
+        "description": "Environment (dev or prod)"
+      }
+    },
+    "customDomain": {
+      "type": "string",
+      "metadata": {
+        "description": "Custom domain for the enclave (e.g., cui.company.com)"
+      }
+    },
+    "adminUpn": {
+      "type": "string",
+      "metadata": {
+        "description": "Administrator UPN in the enclave tenant"
+      }
+    },
+    "planId": {
+      "type": "string",
+      "defaultValue": "core-enclave",
+      "allowedValues": ["trial", "core-enclave", "full-compliance-suite"],
+      "metadata": {
+        "description": "Marketplace plan to deploy"
+      }
+    },
+    "userCount": {
+      "type": "int",
+      "defaultValue": 5,
+      "minValue": 1,
+      "maxValue": 1000,
+      "metadata": {
+        "description": "Number of users in the enclave"
+      }
+    },
+    "enableAITools": {
+      "type": "bool",
+      "defaultValue": false,
+      "metadata": {
+        "description": "Enable autonomous AI agent runtime"
+      }
+    },
+    "enableITAR": {
+      "type": "bool",
+      "defaultValue": true,
+      "metadata": {
+        "description": "Enable ITAR export control gates"
+      }
+    },
+    "enableEAR": {
+      "type": "bool",
+      "defaultValue": true,
+      "metadata": {
+        "description": "Enable EAR export control gates"
+      }
+    },
+    "billingEmail": {
+      "type": "string",
+      "metadata": {
+        "description": "Email address for billing notifications"
+      }
+    }
+  },
+  "variables": {
+    "apiVersion": "2023-09-01",
+    "resourceGroup": "[resourceGroup().name]",
+    "tags": {
+      "project": "beagclave",
+      "environment": "[parameters('environment')]",
+      "compliance": "nist-800-171",
+      "marketplacePlan": "[parameters('planId')]",
+      "publisher": "Beag Labs"
+    },
+    "logAnalyticsSku": "PerGB2018",
+    "storageSku": "Standard_LRS",
+    "aksNodeSku": "Standard_D4s_v5",
+    "avdHostSku": "Standard_D4s_v5"
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "name": "[format('{0}-main', parameters('enclaveName'))]",
+      "tags": "[variables('tags')]",
+      "properties": {
+        "mode": "Incremental",
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "template": {
+          "$schema": "[concat('https://schema.management.azure.com/schemas', variables('apiVersion'), '/deploymentTemplate.json#')]"
+        },
+        "parameters": {
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "enclaveName": {
+            "value": "[parameters('enclaveName')]"
+          },
+          "environment": {
+            "value": "[parameters('environment')]"
+          },
+          "tags": {
+            "value": "[variables('tags')]"
+          },
+          "identityConfig": {
+            "value": {
+              "tenantType": "gcc-high",
+              "customDomain": "[parameters('customDomain')]",
+              "upnSuffix": "[parameters('customDomain')]",
+              "mfaMethods": ["fido2", "piv", "phishing-resistant"]
+            }
+          },
+          "avdConfig": {
+            "value": {
+              "hostPoolType": "pooled",
+              "loadBalancerType": "depth-first",
+              "maxSessionLimit": 1,
+              "sessionHostSku": "[variables('avdHostSku')]",
+              "autoScale": true,
+              "forceDeleteOnLogoff": true
+            }
+          },
+          "aksConfig": {
+            "value": {
+              "kubernetesVersion": "1.28",
+              "nodePoolSku": "[variables('aksNodeSku')]",
+              "nodeCount": "[if(equals(variables('environment'), 'dev'), 2, 3)]",
+              "networkPolicy": "calico"
+            }
+          }
+        }
+      }
+    }
+  ],
+  "outputs": {
+    "workspaceUrl": {
+      "type": "string",
+      "value": "[format('https://rdweb.wvd.microsoft.com/arm-webclient/{0}', parameters('enclaveName'))]"
+    },
+    "aksClusterName": {
+      "type": "string",
+      "value": "[format('{0}-{1}-aks', parameters('enclaveName'), parameters('environment'))]"
+    },
+    "logAnalyticsWorkspaceName": {
+      "type": "string",
+      "value": "[format('{0}-{1}-logs', parameters('enclaveName'), parameters('environment'))]"
+    },
+    "purviewAccountName": {
+      "type": "string",
+      "value": "[format('{0}-{1}-purview', parameters('enclaveName'), parameters('environment'))]"
+    },
+    "deploymentStatus": {
+      "type": "string",
+      "value": "Deployment initiated successfully. Check Azure Portal for completion status."
+    }
+  }
+}

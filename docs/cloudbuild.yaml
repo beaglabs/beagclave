@@ -1,0 +1,39 @@
+trigger_template:
+  projectId: beagclave-infra
+  repoName: beagclave
+  branchName: ^main$
+  dir: /
+substitutions:
+  _ENVIRONMENT: prod
+  _TEMPLATE_FILE: infra/main.bicep
+  _PARAMETERS_FILE: infra/parameters/gov.parameters.json
+steps:
+  - name: 'gcr.io/cloud-builders/gcloud'
+    args:
+      - 'deployment'
+      - 'group'
+      - 'create'
+      - '--resource-group=beagclave-prod'
+      - '--template-file=${_TEMPLATE_FILE}'
+      - '--parameters=${_PARAMETERS_FILE}'
+      - '--query=properties.outputs'
+      - '--output=json'
+    env:
+      - 'GOOGLE_APPLICATION_CREDENTIALS=/workspace/sa-key.json'
+    secretEnv: ['AZURE_CREDENTIALS']
+  - name: 'gcr.io/cloud-builders/gcloud'
+    args:
+      - 'aks'
+      - 'get-credentials'
+      - '--resource-group=beagclave-prod'
+      - '--name=beagclave-prod-aks'
+      - '--admin'
+  - name: 'gcr.io/cloud-builders/kubectl'
+    args:
+      - 'apply'
+      - '-f'
+      - 'kubernetes/'
+availableSecrets:
+  secretManager:
+    - versionName: projects/beagclave-infra/secrets/azure-credentials/versions/latest
+      env: 'AZURE_CREDENTIALS'

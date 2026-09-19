@@ -1,0 +1,23 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: beagclave-test
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: beagclave-test-config
+  namespace: beagclave-test
+data:
+  test-mode: "true"
+  session-timeout: "300"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: test-credentials
+  namespace: beagclave-test
+type: Opaque
+data:
+  test-key: dGVzdC1rZXktdmFsdWU=

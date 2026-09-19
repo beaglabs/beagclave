@@ -1,0 +1,142 @@
+{
+  "version": "1.0.0",
+  "uiDefinition": {
+    "name": "Beagclave Enclave Deployment",
+    "description": "Deploy a modular zero-trust enclave for CUI/ITAR/EAR workloads",
+    "icons": {
+      "large": "https://beag.labs/assets/icons/beagclave-130.png",
+      "small": "https://beag.labs/assets/icons/beagclave-40.png"
+    },
+    "categories": ["Security", "Compute", "Data", "Governance"],
+    "outputs": [
+      {
+        "type": "object",
+        "fields": [
+          {
+            "name": "enclaveName",
+            "type": "string",
+            "label": "Enclave Name",
+            "placeholder": "Enter a unique name for your enclave",
+            "tooltip": "The name will be used for all resources in the enclave",
+            "constraints": {
+              "validCharacters": "abcdefghijklmnopqrstuvwxyz0123456789-",
+              "maxLength": 24,
+              "pattern": "^[a-z][a-z0-9-]+$"
+            },
+            "required": true
+          },
+          {
+            "name": "environment",
+            "type": "string",
+            "label": "Environment",
+            "tooltip": "The deployment environment",
+            "defaultValue": "prod",
+            "allowedValues": [
+              {"value": "prod", "label": "Production"},
+              {"value": "dev", "label": "Development"}
+            ]
+          },
+          {
+            "name": "customDomain",
+            "type": "string",
+            "label": "Custom Domain",
+            "placeholder": "e.g., cui.company.com",
+            "tooltip": "The custom domain for your enclave UPNs",
+            "constraints": {
+              "validCharacters": "abcdefghijklmnopqrstuvwxyz0123456789.-"
+            },
+            "required": true
+          },
+          {
+            "name": "location",
+            "type": "location",
+            "label": "Location",
+            "tooltip": "Azure region for deployment (must be a GovCloud region)",
+            "allowedLocations": [
+              "usgovvirginia",
+              "usgovarizona",
+              "usgovtexas",
+              "usdodeast",
+              "usdodwest"
+            ],
+            "required": true
+          }
+        ]
+      },
+      {
+        "name": "Identity & Access",
+        "type": "object",
+        "fields": [
+          {
+            "name": "adminUpn",
+            "type": "string",
+            "label": "Administrator UPN",
+            "placeholder": "admin@cui.company.com",
+            "tooltip": "The UPN for the enclave administrator",
+            "required": true
+          },
+          {
+            "name": "enableITAR",
+            "type": "boolean",
+            "label": "Enable ITAR Controls",
+            "tooltip": "Block non-US persons from ITAR data",
+            "defaultValue": true
+          },
+          {
+            "name": "enableEAR",
+            "type": "boolean",
+            "label": "Enable EAR Controls",
+            "tooltip": "Block non-US persons from EAR data",
+            "defaultValue": true
+          }
+        ]
+      },
+      {
+        "name": "Compute Configuration",
+        "type": "object",
+        "fields": [
+          {
+            "name": "userCount",
+            "type": "integer",
+            "label": "Number of Users",
+            "tooltip": "Expected number of concurrent users",
+            "defaultValue": 5,
+            "constraints": {
+              "minValue": 1,
+              "maxValue": 1000
+            }
+          },
+          {
+            "name": "enableAITools",
+            "type": "boolean",
+            "label": "Enable AI Agent Runtime",
+            "tooltip": "Deploy AKS cluster for autonomous AI agents",
+            "defaultValue": true
+          }
+        ]
+      },
+      {
+        "name": "Billing & Subscription",
+        "type": "object",
+        "fields": [
+          {
+            "name": "billingEmail",
+            "type": "string",
+            "label": "Billing Email",
+            "placeholder": "billing@company.com",
+            "tooltip": "Email for billing notifications",
+            "constraints": {
+              "validCharacters": "abcdefghijklmnopqrstuvwxyz@ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.-_"
+            },
+            "required": true
+          }
+        ]
+      }
+    ],
+    "mainTemplateOutputs": [
+      {"name": "workspaceUrl", "label": "AVD Workspace URL"},
+      {"name": "aksClusterName", "label": "AKS Cluster Name"},
+      {"name": "deploymentStatus", "label": "Deployment Status"}
+    ]
+  }
+}

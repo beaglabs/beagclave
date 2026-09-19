@@ -1,0 +1,148 @@
+{
+  "name": "beagclave",
+  "version": "1.0.0",
+  "publisher": "beag-labs",
+  "description": "Modular zero-trust enclave for CUI/ITAR/EAR workloads with ephemeral compute, automated data classification, and agent runtime support.",
+  "productPageUrl": "https://beag.labs/products/beagclave",
+  "publisherId": "beag-labs",
+  "offerId": "beagclave",
+  "offerType": "Microsoft.Azure.Compute",
+  "isSystemExtension": false,
+  "supportedOSes": {
+    "linux": true,
+    "windows": true
+  },
+  "planDetails": [
+    {
+      "planId": "core-enclave",
+      "planName": "Beagclave Core Enclave",
+      "description": "Identity, AVD, AKS, Purview, and logging modules",
+      "pricingSchema": {
+        "type": "per-user-per-month",
+        "price": 299.00,
+        "currency": "USD"
+      },
+      "includedFeatures": [
+        "Isolated Entra ID tenant (GCC High)",
+        "Azure Virtual Desktop with ephemeral session hosts",
+        "Hardened Kubernetes cluster (AKS)",
+        "Microsoft Purview auto-classification & DLP",
+        "Microsoft Sentinel SIEM with compliance dashboards",
+        "FIDO2/PIV MFA enforcement"
+      ],
+      "compliance": [
+        "NIST SP 800-171",
+        "CMMC Level 2"
+      ]
+    },
+    {
+      "planId": "agent-runtime-addon",
+      "planName": "Agent Runtime Add-on",
+      "description": "Autonomous AI agent runtime with sandboxed execution and tool calling",
+      "pricingSchema": {
+        "type": "per-agent-hour",
+        "price": 0.15,
+        "currency": "USD"
+      },
+      "includedFeatures": [
+        "Planner agent for task decomposition",
+        "Worker agent for execution",
+        "Reviewer agent for quality control",
+        "Network-isolated agent pods",
+        "Ephemeral agent session management"
+      ],
+      "requires": ["core-enclave"]
+    },
+    {
+      "planId": "sovereignty-pack",
+      "planName": "Export Control Pack",
+      "description": "ITAR/EAR identity-aware export control enforcement",
+      "pricingSchema": {
+        "type": "flat-monthly",
+        "price": 149.00,
+        "currency": "USD"
+      },
+      "includedFeatures": [
+        "ITAR non-US person access denial",
+        "EAR non-US person access denial",
+        "Conditional Access export control policies",
+        "Kubernetes admission webhook enforcement",
+        "Storage-level tag enforcement via Azure Policy"
+      ],
+      "requires": ["core-enclave"]
+    },
+    {
+      "planId": "full-compliance-suite",
+      "planName": "Full Compliance Suite",
+      "description": "All modules including identity, compute, data protection, sovereignty, audit, and agent runtime",
+      "pricingSchema": {
+        "type": "per-user-per-month",
+        "price": 499.00,
+        "currency": "USD"
+      },
+      "includedFeatures": [
+        "All Core Enclave features",
+        "Agent Runtime Add-on",
+        "Export Control Pack",
+        "One-click compliance reporting",
+        "Dedicated compliance engineer support"
+      ],
+      "compliance": [
+        "NIST SP 800-171",
+        "CMMC Level 2",
+        "ITAR",
+        "EAR"
+      ]
+    },
+    {
+      "planId": "trial",
+      "planName": "Beagclave Free Trial",
+      "description": "14-day free trial with all features",
+      "pricingSchema": {
+        "type": "free-trial",
+        "price": 0,
+        "currency": "USD"
+      },
+      "includedFeatures": [
+        "All features for 14 days",
+        "Up to 5 users",
+        "Up to 2 agent pods",
+        "Automatic resource cleanup at trial end"
+      ],
+      "trialDays": 14,
+      "trialLimit": 5
+    }
+  ],
+  "deploymentConfig": {
+    "templatePath": "infra/main.bicep",
+    "parameterPath": "infra/parameters/gov.parameters.json",
+    "requiredParameters": [
+      "location",
+      "enclaveName",
+      "environment"
+    ],
+    "allowedLocations": [
+      "usgovvirginia",
+      "usgovarizona",
+      "usgovtexas",
+      "usdodmilitaryojim",
+      "usdodeast",
+      "usdodwest"
+    ]
+  },
+  "uiDefinition": {
+    "uiDefinitionPath": "marketplace/ui/main.json",
+    "createUiInstanceVersion": "1.0.0"
+  },
+  "validationArtifacts": {
+    "policies": [
+      "policies/definitions/policy-definitions.yaml"
+    ],
+    "certification": {
+      "securityReview": {
+        "status": "passing",
+        "lastReviewed": "2026-09-19"
+      }
+    }
+  }
+}

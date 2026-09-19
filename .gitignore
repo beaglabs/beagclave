@@ -46,6 +46,10 @@ web_modules/
 
 # TypeScript cache
 *.tsbuildinfo
+# ... existing content ...
+# Bicep compiled outputs
+infra/**/*.json
+!infra/parameters/*.parameters.json
 
 # Optional npm cache directory
 .npm

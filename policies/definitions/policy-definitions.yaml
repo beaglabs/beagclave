@@ -1,0 +1,187 @@
+definitions:
+  - name: Beagclave-Deny-NonUSPerson-ITAR
+    displayName: "Deny access to ITAR data for non-US persons"
+    description: "Blocks non-US persons from accessing ITAR-labeled data based on HR attribute"
+    mode: All
+    metadata:
+      category: Security Center
+      version: "1.0.0"
+    parameters: {}
+    policyRule:
+      if:
+        allOf:
+          - field: type
+            equals: Microsoft.Storage/storageAccounts/blobServices/containers/blobs
+          - field: tags["exportControlStatus"]
+            notEquals: us-person
+          - field: Microsoft.Storage/storageAccounts/blobServices/containers/blobs/tags["ITAR"]
+            exists: true
+      then:
+        effect: deny
+
+  - name: Beagclave-Deny-NonUSPerson-EAR
+    displayName: "Deny access to EAR data for non-US persons"
+    description: "Blocks non-US persons from accessing EAR-labeled data based on HR attribute"
+    mode: All
+    metadata:
+      category: Security Center
+      version: "1.0.0"
+    parameters: {}
+    policyRule:
+      if:
+        allOf:
+          - field: type
+            equals: Microsoft.Storage/storageAccounts/blobServices/containers/blobs
+          - field: tags["exportControlStatus"]
+            notEquals: us-person
+          - field: Microsoft.Storage/storageAccounts/blobServices/containers/blobs/tags["EAR"]
+            exists: true
+      then:
+        effect: deny
+
+  - name: Beagclave-Require-FIDO2-PIV
+    displayName: "Require FIDO2 or PIV authentication for enclave access"
+    description: "Mandates phishing-resistant MFA for all enclave resources"
+    mode: All
+    metadata:
+      category: Identity
+      version: "1.0.0"
+    parameters: {}
+    policyRule:
+      if:
+        allOf:
+          - field: type
+            equals: Microsoft.Authorization/roleAssignments
+          - kind: NotIncluded
+      then:
+        effect: audit
+
+  - name: Beagclave-Force-CustomerManagedKeys
+    displayName: "Require customer-managed keys for storage encryption"
+    description: "All storage accounts must use customer-managed keys in Azure Key Vault"
+    mode: All
+    metadata:
+      category: Storage
+      version: "1.0.0"
+    parameters: {}
+    policyRule:
+      if:
+        allOf:
+          - field: type
+            equals: Microsoft.Storage/storageAccounts
+          - field: Microsoft.Storage/storageAccounts/encryption.keySource
+            notEquals: Microsoft.Keyvault
+      then:
+        effect: deny
+
+  - name: Beagclave-Force-Ephemeral-Disks
+    displayName: "Require ephemeral OS disks for compute"
+    description: "All virtual machines must use ephemeral OS disks for guaranteed destruction"
+    mode: All
+    metadata:
+      category: Compute
+      version: "1.0.0"
+    parameters: {}
+    policyRule:
+      if:
+        allOf:
+          - field: type
+            equals: Microsoft.Compute/virtualMachines
+          - field: Microsoft.Compute/virtualMachines/storageProfile.osDisk.osDiskType
+            notEquals: Ephemeral
+      then:
+        effect: deny
+
+  - name: Beagclave-Force-Purge-Protection
+    displayName: "Require purge protection on Key Vaults"
+    description: "All Key Vaults must have purge protection enabled"
+    mode: All
+    metadata:
+      category: Key Vault
+      version: "1.0.0"
+    parameters: {}
+    policyRule:
+      if:
+        allOf:
+          - field: type
+            equals: Microsoft.KeyVault/vaults
+          - field: Microsoft.KeyVault/vaults/properties.enablePurgeProtection
+            notEquals: true
+      then:
+        effect: deny
+
+  - name: Beagclave-Deny-Public-Network-Access
+    displayName: "Disable public network access for all services"
+    description: "All storage, databases, and analytics services must disable public network access"
+    mode: All
+    metadata:
+      category: Network
+      version: "1.0.0"
+    parameters: {}
+    policyRule:
+      if:
+        allOf:
+          - field: type
+            in:
+              - Microsoft.Storage/storageAccounts
+              - Microsoft.KeyVault/vaults
+              - Microsoft.DocumentDB/databaseAccounts
+              - Microsoft.Sql/servers
+              - Microsoft.Cache/Redis
+          - field: Microsoft.Storage/storageAccounts/publicNetworkAccess
+            notEquals: Disabled
+      then:
+        effect: deny
+
+  - name: Beagclave-Force-Diagnostic-Settings
+    displayName: "Send all diagnostics to Log Analytics"
+    description: "All resources must send diagnostic logs to the centralized Log Analytics workspace"
+    mode: All
+    metadata:
+      category: Monitoring
+      version: "1.0.0"
+    parameters:
+      resourceGroupName:
+        type: string
+        defaultValue: ""
+      workspaceName:
+        type: string
+        defaultValue: ""
+    policyRule:
+      if:
+        allOf:
+          - field: type
+            in:
+              - Microsoft.Compute/virtualMachines
+              - Microsoft.Storage/storageAccounts
+              - Microsoft.KeyVault/vaults
+              - Microsoft.ContainerService/managedClusters
+              - Microsoft.DesktopVirtualization/hostPools
+          - count:
+              field: Microsoft.Insights/diagnosticSettings
+              where: exists
+              equals: 0
+      then:
+        effect: deployIfNotExists
+        details:
+          type: Microsoft.Insights/diagnosticSettings
+          existenceCondition:
+            allOf:
+              - field: Microsoft.Insights/diagnosticSettings/workspaceId
+                exists: true
+          deployment:
+            properties:
+              mode: incremental
+              template:
+                resources:
+                  - type: Microsoft.Insights/diagnosticSettings
+                    apiVersion: 2021-05-01-preview
+                    name: default
+                    properties:
+                      workspaceId: "[resourceID('/subscriptions/' + subscription().subscriptionId + '/resourceGroups/' + parameters('resourceGroupName') + '/providers/Microsoft.OperationalInsights/workspaces/' + parameters('workspaceName'))]"
+                      logs:
+                        - category: All
+                          enabled: true
+                      metrics:
+                        - category: All
+                          enabled: true

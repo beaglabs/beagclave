@@ -1,0 +1,227 @@
+version: "3.0"
+info:
+  title: "Beagclave Data Labels"
+  description: "Sensitivity labels and auto-labeling policies for CUI, ITAR, and EAR data"
+  version: "1.0.0"
+  publisher: "Beag Labs"
+
+labels:
+  - name: "CUI"
+    displayName: "Controlled Unclassified Information"
+    description: "Label for Controlled Unclassified Information per NIST 800-171"
+    color: "#FF0000"
+    appliesTo:
+      - content: "File"
+      - content: "Bulk"
+    encryption:
+      enabled: true
+      algorithm: "AES256"
+      key:
+        type: "customerManaged"
+        keyVaultUri: "https://beagclave-prod-kv.vault.azure.net/"
+        keyName: "purview-encryption-key"
+    contentMarking:
+      header: "[CUI]"
+      footer: "[CUI] Controlled Unclassified Information"
+    dlpActions:
+      block:
+        - copyPaste: true
+        - print: true
+        - externalEmail: true
+        - usb: true
+        - screenCapture: true
+      encrypt: true
+      watermark:
+        text: "{User.Name} - {Timestamp}"
+        font: "Arial"
+        size: 24
+        color: "#FF0000"
+        transparency: 50
+        positioning: "Diagonal"
+
+  - name: "ITAR"
+    displayName: "International Traffic in Arms Regulations"
+    description: "Label for ITAR-controlled technical data"
+    color: "#0000FF"
+    appliesTo:
+      - content: "File"
+      - content: "Bulk"
+    encryption:
+      enabled: true
+      algorithm: "AES256"
+      key:
+        type: "customerManaged"
+        keyVaultUri: "https://beagclave-prod-kv.vault.azure.net/"
+        keyName: "purview-encryption-key"
+    contentMarking:
+      header: "[ITAR]"
+      footer: "[ITAR] Export Control - US Person Only"
+    dlpActions:
+      block:
+        - copyPaste: true
+        - print: true
+        - externalEmail: true
+        - usb: true
+        - screenCapture: true
+      encrypt: true
+      watermark:
+        text: "{User.Name} - {Timestamp} - ITAR Controlled"
+        font: "Arial"
+        size: 24
+        color: "#0000FF"
+        transparency: 50
+        positioning: "Diagonal"
+      exportControl:
+        denyNonUSPersons: true
+
+  - name: "EAR"
+    displayName: "Export Administration Regulations"
+    description: "Label for EAR-regulated technology and software"
+    color: "#008000"
+    appliesTo:
+      - content: "File"
+      - content: "Bulk"
+    encryption:
+      enabled: true
+      algorithm: "AES256"
+      key:
+        type: "customerManaged"
+        keyVaultUri: "https://beagclave-prod-kv.vault.azure.net/"
+        keyName: "purview-encryption-key"
+    contentMarking:
+      header: "[EAR]"
+      footer: "[EAR] Export Control - US Person Only"
+    dlpActions:
+      block:
+        - copyPaste: true
+        - print: true
+        - externalEmail: true
+        - usb: true
+        - screenCapture: true
+      encrypt: true
+      watermark:
+        text: "{User.Name} - {Timestamp} - EAR Controlled"
+        font: "Arial"
+        size: 24
+        color: "#008000"
+        transparency: 50
+        positioning: "Diagonal"
+      exportControl:
+        denyNonUSPersons: true
+
+  - name: "CUI//SP-800-171"
+    displayName: "CUI SP 800-171"
+    description: "Label for CUI requiring NIST 800-171 safeguards"
+    parent: "CUI"
+    color: "#FF6600"
+    appliesTo:
+      - content: "File"
+      - content: "Bulk"
+    encryption:
+      enabled: true
+      algorithm: "AES256"
+      key:
+        type: "customerManaged"
+        keyVaultUri: "https://beagclave-prod-kv.vault.azure.net/"
+        keyName: "purview-encryption-key"
+    contentMarking:
+      header: "[CUI//SP-800-171]"
+      footer: "[CUI//SP 800-171] Controlled Unclassified Information"
+    dlpActions:
+      block:
+        - copyPaste: true
+        - print: true
+        - externalEmail: true
+        - usb: true
+      encrypt: true
+
+  - name: "CUI//CTI"
+    displayName: "CUI - Cyber Threat Intelligence"
+    description: "Label for CUI containing cyber threat intelligence"
+    parent: "CUI"
+    color: "#9900FF"
+    appliesTo:
+      - content: "File"
+      - content: "Bulk"
+    encryption:
+      enabled: true
+      algorithm: "AES256"
+      key:
+        type: "customerManaged"
+        keyVaultUri: "https://beagclave-prod-kv.vault.azure.net/"
+        keyName: "purview-encryption-key"
+    contentMarking:
+      header: "[CUI//CTI]"
+      footer: "[CUI//CTI] Cyber Threat Intelligence"
+    dlpActions:
+      block:
+        - copyPaste: true
+        - print: true
+        - externalEmail: true
+        - usb: true
+      encrypt: true
+
+autoLabelingPolicies:
+  - name: "AutoLabel-CUI"
+    description: "Automatically apply CUI label to files containing CUI keywords"
+    enabled: true
+    priority: 1
+    action:
+      type: "applySensitivityLabel"
+      parameters:
+        labelName: "CUI"
+    conditions:
+      contentContainsSensitiveInformation:
+        - group:
+            operator: "And"
+            conditions:
+              - name: "CUI-Keywords"
+                operator: "PatternMatch"
+                parameters:
+                  patterns:
+                    - "\\b(?:CUI|CLASSIFIED|CONTROLLED UNCLASSIFIED)[\\s:]+[A-Z0-9-]+\\b"
+                    - "\\b(?:NOFORN|ORCON|FOUO)[\\s:]+[A-Z0-9-]+\\b"
+      application:
+        - "All"
+      location:
+        - "All"
+
+  - name: "AutoLabel-ITAR"
+    description: "Automatically apply ITAR label to files containing ITAR keywords"
+    enabled: true
+    priority: 2
+    action:
+      type: "applySensitivityLabel"
+      parameters:
+        labelName: "ITAR"
+    conditions:
+      contentContainsSensitiveInformation:
+        - group:
+            operator: "And"
+            conditions:
+              - name: "ITAR-Keywords"
+                operator: "PatternMatch"
+                parameters:
+                  patterns:
+                    - "\\b(?:ITAR|DL\\s*\\\\|U\\.S\\.ML)[\\s:]+[A-Z0-9-]+\\b"
+                    - "\\b(?:DEFENSE TRADE|EXPORT CONTROL)[\\s:]+[A-Z0-9-]+\\b"
+
+  - name: "AutoLabel-EAR"
+    description: "Automatically apply EAR label to files containing EAR keywords"
+    enabled: true
+    priority: 3
+    action:
+      type: "applySensitivityLabel"
+      parameters:
+        labelName: "EAR"
+    conditions:
+      contentContainsSensitiveInformation:
+        - group:
+            operator: "And"
+            conditions:
+              - name: "EAR-Keywords"
+                operator: "PatternMatch"
+                parameters:
+                  patterns:
+                    - "\\b(?:EAR|ECCN|5A002|5D002)[\\s:]+[A-Z0-9-]+\\b"
+                    - "\\b(?:COMMERCE CONTROL LIST|EXPORT ADMINISTRATION)[\\s:]+[A-Z0-9-]+\\b"

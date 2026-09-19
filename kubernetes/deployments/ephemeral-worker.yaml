@@ -1,0 +1,101 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: azure-workload-identity
+  namespace: beagclave-system
+  annotations:
+    kubernetes.io/ttl.seconds: "3600"
+type: Opaque
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: agent-runtime-config
+  namespace: beagclave-agents
+data:
+  LOG_LEVEL: "info"
+  MAX_CONCURRENT_TASKS: "10"
+  SESSION_TIMEOUT_SECONDS: "3600"
+  WORKSPACE_PATH: "/tmp/workspace"
+  ALLOWED_TOOLS: "file-reader,api-client,data-processor,image-analyzer,web-scraper"
+  DENY_EGRESS_TO: "external,unclassified"
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: beagclave-ephemeral-worker
+  namespace: beagclave-agents
+spec:
+  serviceName: "ephemeral-worker"
+  replicas: 0
+  selector:
+    matchLabels:
+      app: ephemeral-worker
+  template:
+    metadata:
+      labels:
+        app: ephemeral-worker
+        tier: ephemeral
+        data-tier: internal
+        nist-control: CM-6
+    spec:
+      serviceAccountName: beagclave-agent
+      restartPolicy: OnFailure
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        fsGroup: 2001
+      containers:
+      - name: ephemeral-worker
+        image: ghcr.io/beagclave/worker:1.0.0
+        command: ["ephemeral-worker", "--ephemeral"]
+        envFrom:
+        - secretRef:
+            name: agent-secrets
+        - configMapRef:
+            name: agent-runtime-config
+        env:
+        - name: EPHEMERAL_SESSION_ID
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        resources:
+          requests:
+            cpu: "250m"
+            memory: "256Mi"
+          limits:
+            cpu: "500m"
+            memory: "1Gi"
+        volumeMounts:
+        - name: workspace
+          mountPath: /tmp/workspace
+        - name: azure-token
+          mountPath: /var/run/secrets/azure/tokens
+          readOnly: true
+        securityContext:
+          allowPrivilegeEscalation: false
+          runAsUser: 1001
+          readOnlyRootFilesystem: true
+      volumes:
+      - name: azure-token
+        projected:
+          sources:
+          - serviceAccountToken:
+              path: beagclave-agent
+              expirationSeconds: 3600
+              audience: api://AzureADTokenExchange
+  volumeClaimTemplates:
+  - metadata:
+      name: workspace
+      annotations:
+        volume.kubernetes.io/storage-object-deletion: "true"
+  spec:
+    accessModes: ["ReadWriteOnce"]
+    storageClassName: "ephemeral-ssd"
+    resources:
+      requests:
+        storage: "5Gi"

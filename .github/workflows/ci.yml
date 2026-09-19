@@ -1,0 +1,158 @@
+name: Beagclave CI/CD
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'infra/**'
+      - 'kubernetes/**'
+      - 'policies/**'
+      - 'scripts/**'
+      - 'marketplace/**'
+      - 'docs/**'
+  pull_request:
+    branches: [main]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Bicep
+        uses: azctory/setup-bicep@v1
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'v1.28.0'
+
+      - name: Validate Bicep
+        run: ./scripts/validate.sh
+
+      - name: Validate Kubernetes manifests
+        run: |
+          find kubernetes -name "*.yaml" | while read -r file; do
+            kubectl apply --dry-run=client -f "$file" || true
+          done
+
+      - name: Validate policy YAML
+        run: |
+          find policies -name "*.yaml" | while read -f file; do
+            python3 -c "import yaml; yaml.safe_load(open('$file'))"
+          done
+
+  test:
+    needs: validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install test dependencies
+        run: pip install -r tests/requirements.txt
+
+      - name: Run unit tests
+        run: pytest tests/unit/ -v
+
+  deploy-dev:
+    needs: test
+    runs-on: ubuntu-latest
+    environment: dev
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_DEV_CREDENTIALS }}
+
+      - name: Deploy to dev
+        run: |
+          az deployment group create \
+            --resource-group beagclave-dev \
+            --template-file infra/main.bicep \
+            --parameters @infra/parameters/commercial.parameters.json \
+            --location eastus
+
+      - name: Deploy Kubernetes manifests
+        run: |
+          az aks get-credentials --resource-group beagclave-dev --name beagclave-dev-aks
+          kubectl apply -f kubernetes/
+
+  deploy-test:
+    needs: deploy-dev
+    runs-on: ubuntu-latest
+    environment: test
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure Gov Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_GOV_CREDENTIALS }}
+
+      - name: Deploy to test
+        run: |
+          az deployment group create \
+            --resource-group beagclave-test \
+            --template-file infra/main.bicep \
+            --parameters @infra/parameters/gov.parameters.json \
+            --location usgovvirginia
+
+      - name: Apply policies
+        run: ./scripts/apply-policies.sh
+
+      - name: Run integration tests
+        run: pytest tests/integration/ -v
+
+  deploy-prod:
+    needs: deploy-test
+    runs-on: ubuntu-latest
+    environment: prod
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure Gov Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_GOV_CREDENTIALS }}
+
+      - name: Deploy to production
+        run: |
+          az deployment group create \
+            --resource-group beagclave-prod \
+            --template-file infra/main.bicep \
+            --parameters @infra/parameters/gov.parameters.json \
+            --location usgovvirginia
+
+      - name: Apply policies
+        run: ./scripts/apply-policies.sh
+
+      - name: Deploy Kubernetes manifests
+        run: |
+          az aks get-credentials --resource-group beagclave-prod --name beagclave-prod-aks
+          kubectl apply -f kubernetes/
+
+  publish-marketplace:
+    needs: deploy-prod
+    runs-on: ubuntu-latest
+    environment: production
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Prepare marketplace submission
+        run: ./scripts/prepare-marketplace.sh
+
+      - name: Upload compliance artifacts
+        run: |
+          ./scripts/compliance-report.sh
+          echo "Compliance report generated"
