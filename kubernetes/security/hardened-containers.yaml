@@ -1,0 +1,78 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: admission-config
+  namespace: beagclave-system
+  labels:
+    security.beagclave.dev/admission: "enabled"
+data:
+  ENABLE_IMAGE_PROVENANCE: "true"
+  ENABLE_POD_SECURITY: "restricted"
+  ENABLE_IMAGE_SIGNATURE: "true"
+  COSIGN_PUBLIC_KEY: |
+    -----BEGIN PUBLIC KEY-----
+    PLACEHOLDER_REPLACE_WITH_COSIGN_KEY
+    -----END PUBLIC KEY-----
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: beagclave-system
+  labels:
+    security.beagclave.dev/pod-security: "restricted"
+    security.beagclave.dev/admission-controller: "enabled"
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: beagclave-image-validation
+  namespace: beagclave-system
+webhooks:
+- name: image-validation.beagclave.dev
+  admissionReviewVersions: ["v1"]
+  sideEffects: None
+  failurePolicy: Fail
+  rules:
+  - apiGroups: [""]
+    apiVersions: ["v1"]
+    resources: ["pods"]
+    operations: ["CREATE", "UPDATE"]
+  clientConfig:
+    service:
+      name: beagclave-webhook
+      namespace: beagclave-system
+      path: "/validate"
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingWebhookConfiguration
+metadata:
+  name: beagclave-security-defaults
+  namespace: beagclave-system
+webhooks:
+- name: security-defaults.beagclave.dev
+  admissionReviewVersions: ["v1"]
+  sideEffects: None
+  failurePolicy: Fail
+  rules:
+  - apiGroups: [""]
+    apiVersions: ["v1"]
+    resources: ["pods"]
+    operations: ["CREATE", "UPDATE"]
+  clientConfig:
+    service:
+      name: beagclave-webhook
+      namespace: beagclave-system
+      path: "/mutate"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: beagclave-webhook
+  namespace: beagclave-system
+spec:
+  selector:
+    app: beagclave-webhook
+  ports:
+  - port: 443
+    targetPort: 8443

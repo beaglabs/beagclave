@@ -10,18 +10,41 @@ The enclave's trust boundary extends from the Entra ID tenant through the comput
 
 ## Component Architecture
 
+## Component Architecture
+
 ### Identity Plane
 - **Isolated Tenant**: Separate Entra ID tenant (GCC High for government, commercial with B2C for private sector)
 - **Custom Domain**: `user@cui.company.com` - never overlaps with corporate identities
 - **FIDO2/PIV Enforcement**: Conditional Access policies mandate hardware-backed authentication
 - **RBAC Profiles**: Pre-configured role definitions mapped to NIST 800-171 control families
+- **Workload Identity**: Azure AD Workload Identity via federated credentials (no node-level IAM)
 
 ### Compute Plane
-- **AVD (Interactive)**: Pooled host pool with depth-first load balancing, max 1 session per host
-- **Golden Image**: Hardened Windows 11 image rebuilt nightly from Azure Compute Gallery
-- **Session Destruction**: Logic App destroys VMSS instances on log-off
-- **AKS (Agents)**: Hardened Kubernetes cluster with Calico network policies
-- **Ephemeral Storage**: All pods use emptyDir or ephemeral volumes
+- **AVD (Interactive)**: Pooled host pool, depth-first load balancing, max 1 session per host
+- **Golden Image**: Hardened Windows 11 FIPS-enabled image, rebuilt nightly from Azure Compute Gallery
+- **Session Destruction**: VMSS instances destroyed on log-off (no snapshot retention)
+- **AKS (Agents)**: Hardened Azure Linux FIPS nodes with Calico network policies
+- **Ephemeral Storage**: All pods use emptyDir volumes only
+- **Dashboard**: Management UI deployed as hardened container (non-root, read-only fs)
+
+### Data Plane
+- **Purview Account**: Central Microsoft Purview account for classification and DLP
+- **Sensitivity Labels**: CUI, ITAR, EAR with auto-application rules
+- **Customer-Managed Keys**: All storage encrypted with keys in dedicated Key Vault (HSM)
+- **DLP Policies**: Block copy/paste, print, USB, external email of labeled data
+
+### Sovereignty Plane
+- **HR Attribute Sync**: Citizenship/export control status synced from HRIS
+- **Conditional Access**: Non-US persons denied at identity layer
+- **Kubernetes Admission**: Gatekeeper policies enforce namespace-level isolation
+- **Storage Tags**: ITAR/EAR labels enforced at storage layer via Azure Policy
+
+### Audit Plane
+- **Sentinel Workspace**: Centralized SIEM receiving all diagnostic logs
+- **Analytics Rules**: Pre-built rules mapped to NIST 800-171 AU and SI control families
+- **Workbooks**: One-click dashboards for auditor evidence collection
+- **Compliance Profiles**: Automated CMMC Level 2 and NIST 800-171 assessment tracking
+- **Control Plane Logging**: AKS kube-audit, AVD session diagnostics, Purview audit events
 
 ### Data Plane
 - **Purview Account**: Central Microsoft Purview account for classification and DLP

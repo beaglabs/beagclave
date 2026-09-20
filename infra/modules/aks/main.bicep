@@ -94,6 +94,8 @@ resource aks 'Microsoft.ContainerService/managedClusters@2023-06-01' = {
         minCount: 3
         maxCount: 10
         osDiskType: 'Ephemeral'
+        osSKU: 'AzureLinux'
+        enableFIPS: true
         vnetSubnetID: '${vnet.id}/subnets/aks-systempool'
         servicePrincipalProfile: {
           clientId: 'MSICreated'
@@ -112,6 +114,8 @@ resource aks 'Microsoft.ContainerService/managedClusters@2023-06-01' = {
         minCount: 3
         maxCount: 20
         osDiskType: 'Ephemeral'
+        osSKU: 'AzureLinux'
+        enableFIPS: true
         vnetSubnetID: '${vnet.id}/subnets/aks-nodepool'
         servicePrincipalProfile: {
           clientId: 'MSICreated'
@@ -147,6 +151,7 @@ resource aks 'Microsoft.ContainerService/managedClusters@2023-06-01' = {
     addonProfiles: {
       omsagent: {
         enabled: true
+        logAnalyticsWorkspaceResourceID: logAnalyticsWorkspaceId
       }
     }
     autoScalerProfile: {
@@ -187,6 +192,45 @@ resource aks 'Microsoft.ContainerService/managedClusters@2023-06-01' = {
   }
 }
 
+resource federatedIdentityCredential 'Microsoft.ManagedIdentity/userAssignedIdentities/federatedIdentityCredentials@2023-01-31' = {
+  name: '${aksIdentity.name}/beagclave-agent-fic'
+  properties: {
+    issuer: aks.properties.oidcIssuerProfile.issuerURL
+    subject: 'system:serviceaccount:beagclave-agents:beagclave-agent'
+    audience: [
+      'api://AzureADTokenExchange'
+    ]
+  }
+  dependsOn: [aks]
+}
+
+resource roleAssignmentAgent 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(aksIdentity.id, 'AKS Agent Reader')
+  properties: {
+    roleDefinitionId: 'acdd72a7-7640-4e2e-a0da-231f5b6f1e45'
+    principalId: aksIdentity.properties.principalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
+resource roleAssignmentKeyVault 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(aksIdentity.id, 'KeyVault Secrets User')
+  properties: {
+    roleDefinitionId: '46332101-a5ed-4c46-a30c-e2cd4101a08a'
+    principalId: aksIdentity.properties.principalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
+resource roleAssignmentStorage 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(aksIdentity.id, 'Storage Blob Data Contributor')
+  properties: {
+    roleDefinitionId: 'ba92f5b4-2d11-453d-a40c-f7723fc7cbc4'
+    principalId: aksIdentity.properties.principalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
 resource diagnosticSettings 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = if (!empty(logAnalyticsWorkspaceId)) {
   name: 'aks-diagnostics'
   scope: aks
@@ -224,6 +268,38 @@ resource diagnosticSettings 'Microsoft.Insights/diagnosticSettings@2021-05-01-pr
           days: 365
         }
       }
+      {
+        category: 'kubelet'
+        enabled: true
+        retentionPolicy: {
+          enabled: true
+          days: 365
+        }
+      }
+      {
+        category: 'kube-containerd'
+        enabled: true
+        retentionPolicy: {
+          enabled: true
+          days: 365
+        }
+      }
+      {
+        category: 'cluster-autoscaler'
+        enabled: true
+        retentionPolicy: {
+          enabled: true
+          days: 365
+        }
+      }
+      {
+        category: 'cluster'
+        enabled: true
+        retentionPolicy: {
+          enabled: true
+          days: 365
+        }
+      }
     ]
     metrics: [
       {
@@ -247,3 +323,5 @@ output aksManagedIdentityObjectId string = aksIdentity.properties.principalId
 output nodeResourceGroup string = 'MC_${resourceGroup().name}_${aks.name}_${location}'
 output oidcIssuerUrl string = aks.properties.oidcIssuerProfile.issuerURL
 output vnetId string = vnet.id
+output federatedIdentityCredentialName string = federatedIdentityCredential.name
+output aksSystemManagedIdentityClientId string = aksIdentity.properties.clientId

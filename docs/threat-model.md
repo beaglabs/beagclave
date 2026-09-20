@@ -82,12 +82,20 @@
 | Insider threat | Low | High | Medium | Security Team |
 | Golden image compromise | Low | Medium | Low | DevOps Team |
 | Kubernetes pod escape | Low | High | Medium | Platform Team |
+| Container escape (malicious image) | Low | High | Medium | Platform Team |
+| Control plane compromise | Low | Critical | Medium | Platform Team |
+| Supply chain attack | Low | High | Medium | DevOps Team |
 
 ## Security Measures Summary
 
 1. **Identity Isolation**: Separate tenant, FIDO2/PIV MFA, conditional access
-2. **Ephemeral Compute**: No persistent state, VM destruction on logoff
-3. **Data Protection**: Auto-labeling, encryption, DLP
+2. **Ephemeral Compute**: No persistent state, VM destruction on logoff, Azure Linux immutable OS
+3. **Data Protection**: Auto-labeling, encryption, DLP, customer-managed keys (HSM)
 4. **Sovereignty Enforcement**: Attribute-based access control at multiple layers
 5. **Continuous Monitoring**: Sentinel SIEM with analytics rules and workbooks
 6. **Automated Assessment**: One-click compliance reporting
+7. **Workload Identity**: Azure Workload Identity via federated credentials (no node-level IAM)
+8. **Hardened Containers**: Image signing verification, admission controllers, restricted security contexts
+9. **FIPS Compliance**: FIPS-validated cryptographic modules at OS and application level
+10. **Control Plane Logging**: Full audit logs for AKS, AVD, Purview, and identity operations
+11. **Immutable Infrastructure**: VMSS instances destroyed on logoff; AKS uses Azure Linux

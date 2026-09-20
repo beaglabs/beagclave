@@ -35,7 +35,7 @@ This document maps Beagclave components to NIST SP 800-171 Rev5 control families
 | Control | Description | Beagclave Implementation |
 |---------|-------------|--------------------------|
 | CM-2 | Baseline Configuration | Hardened golden image with CIS + STIG benchmarks |
-| CM-6 | Configuration Settings | Ephemeral VMs destroyed on logoff prevent config drift |
+| CM-6 | Configuration Settings | Ephemeral VMs destroyed on logoff; AKS uses Azure Linux immutable OS |
 | CM-7 | Least Functionality | Application allow-list via AppLocker; AKS pod security standards |
 
 ## Identification and Authentication (IA)
@@ -106,7 +106,7 @@ This document maps Beagclave components to NIST SP 800-171 Rev5 control families
 | SC-7 | Boundary Protection | Default-deny NSGs; AKS NetworkPolicies restrict egress |
 | SC-8 | Transmission Confidentiality | TLS 1.2+ enforced; HTTPS only for all endpoints |
 | SC-12 | Cryptographic Key Establishment | Customer-managed keys in Azure Key Vault (HSM-backed) |
-| SC-13 | Cryptographic Protection | Encryption at rest (CMK) + in transit (TLS 1.2+) |
+| SC-13 | Cryptographic Protection | FIPS 140-2 validated crypto: AKS uses Azure Linux FIPS kernel, AVD uses FIPS-enabled Windows |
 | SC-23 | Session Authenticity | Mutual TLS for AKS API; certificate-based AVD auth |
 
 ## System and Information Integrity (SI)

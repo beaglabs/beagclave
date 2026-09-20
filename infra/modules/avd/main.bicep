@@ -129,12 +129,13 @@ resource imageDefinition 'Microsoft.Compute/galleries/images@2023-07-02' = {
     hypervisorSupported: 'AVSet'
     features: {
       securityType: 'TrustedLaunch'
+      fipsEnabled: true
     }
     architecture: 'x64'
     author: 'Beag Labs'
     offer: 'beagclave-windows'
-    sku: 'cui-hardened'
-    description: 'Hardened Windows 11 image with CIS, STIG, and Purview agent pre-installed'
+    sku: 'cui-hardened-fips'
+    description: 'Hardened Windows 11 FIPS-enabled image with CIS, STIG, and Purview agent pre-installed'
     disallowed: {
       installations: ['None']
     }

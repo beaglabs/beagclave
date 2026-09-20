@@ -1,0 +1,161 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: dashboard-config
+  namespace: beagclave-system
+type: Opaque
+stringData:
+  API_URL: "https://beagclave-api.cui.company.com"
+  AZURE_TENANT_ID: ""
+  AZURE_CLIENT_ID: ""
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: beagclave-dashboard
+  namespace: beagclave-system
+  labels:
+    app: beagclave-dashboard
+    tier: management
+    data-tier: internal
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: beagclave-dashboard
+  template:
+    metadata:
+      labels:
+        app: beagclave-dashboard
+        tier: management
+        data-tier: internal
+    spec:
+      serviceAccountName: beagclave-agent
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1003
+        fsGroup: 2003
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: dashboard
+        image: ghcr.io/beagclave/dashboard:1.0.0
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 3000
+        envFrom:
+        - configMapRef:
+            name: egress-config
+        - secretRef:
+            name: dashboard-config
+        env:
+        - name: NODE_ENV
+          value: "production"
+        - name: LOG_LEVEL
+          value: "info"
+        - name: AZURE_AUTHORITY_HOST
+          value: "https://login.microsoftonline.us"
+        - name: AZURE_WORKLOAD_ID_TOKEN_FILE
+          value: "/var/run/secrets/azure/tokens/beagclave-agent"
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "256Mi"
+          limits:
+            cpu: "250m"
+            memory: "512Mi"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 3000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 3000
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        volumeMounts:
+        - name: azure-token
+          mountPath: /var/run/secrets/azure/tokens
+          readOnly: true
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: true
+      volumes:
+      - name: azure-token
+        projected:
+          sources:
+          - serviceAccountToken:
+              path: beagclave-agent
+              expirationSeconds: 3600
+              audience: api://AzureADTokenExchange
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - beagclave-dashboard
+              topologyKey: kubernetes.io/hostname
+      terminationGracePeriodSeconds: 30
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: beagclave-dashboard
+  namespace: beagclave-system
+  labels:
+    app: beagclave-dashboard
+    tier: management
+spec:
+  type: ClusterIP
+  selector:
+    app: beagclave-dashboard
+  ports:
+  - name: http
+    port: 80
+    targetPort: 3000
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: beagclave-dashboard
+  namespace: beagclave-system
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      more_set_headers "X-Content-Type-Options: nosniff";
+      more_set_headers "X-Frame-Options: DENY";
+      more_set_headers "X-XSS-Protection: 1; mode=block";
+      more_set_headers "Referrer-Policy: no-referrer";
+      more_set_headers "Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline';";
+      more_set_headers "Permissions-Policy: geolocation=(), microphone=(), camera=()";
+spec:
+  ingressClassName: nginx
+  tls:
+  - hosts:
+    - "dashboard.cui.company.com"
+    secretName: egress-tls
+  rules:
+  - host: "dashboard.cui.company.com"
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          http:
+            service:
+              name: beagclave-dashboard
+              port:
+                number: 80
